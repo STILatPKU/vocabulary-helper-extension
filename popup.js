@@ -1,13 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   const queueDiv = document.getElementById('queue');
+  let currentQueue = [];
 
-  function renderQueue(queue) {
+  function renderQueue() {
     queueDiv.innerHTML = '';
-    if (!queue || queue.length === 0) {
+    if (!currentQueue || currentQueue.length === 0) {
       queueDiv.textContent = 'No pending uploads.';
       return;
     }
-    queue.forEach(item => {
+    const now = Date.now();
+    currentQueue.forEach(item => {
       const div = document.createElement('div');
       div.className = 'item';
       const wordSpan = document.createElement('span');
@@ -15,9 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
       wordSpan.textContent = item.word;
       const countdownSpan = document.createElement('span');
       countdownSpan.className = 'countdown';
-      const msRemaining = item.dueTime - Date.now();
+      const msRemaining = item.dueTime - now;
       const seconds = Math.max(0, Math.ceil(msRemaining / 1000));
-      countdownSpan.textContent = seconds + 's';
+      countdownSpan.textContent = `${seconds}s`;
       const cancelBtn = document.createElement('button');
       cancelBtn.className = 'cancel-btn';
       cancelBtn.textContent = 'Cancel';
@@ -37,10 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'QUEUE_UPDATE') {
-      renderQueue(msg.queue);
+      currentQueue = msg.queue;
+      renderQueue();
     }
   });
 
-  // initial load
+  // initial fetch
   requestQueue();
+  // update countdown every second
+  setInterval(() => {
+    if (currentQueue && currentQueue.length > 0) {
+      renderQueue();
+    }
+  }, 1000);
 });
