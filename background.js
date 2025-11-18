@@ -1,84 +1,88 @@
-// background.js with queue and adjustable wait time
+// background.js with queue and adjustable wait time and improved badge display
 
 let waitTime = 5000; // default wait time in ms
 let pendingEntries = []; // array of pending word entries
 
 // Load wait time from storage if previously saved
-chrome.storage.local.get(['waitTime'], data => {
+chrome.storage.local.get({ waitTime: 5000 }, (data) => {
   if (typeof data.waitTime === 'number') {
     waitTime = data.waitTime;
   }
 });
 
-// Update badge to show remaining time of the last upload
+// Update badge to show remaining time of the last upload plus plus sign if queue has more than one item
 function updateBadge() {
-  const count = pendingEntries.length;
-  if (count === 0) {
+  if (pendingEntries.length === 0) {
     chrome.action.setBadgeText({ text: '' });
     return;
   }
-  // find the item with the maximum dueTime
-  const maxDue = Math.max(...pendingEntries.map(item => item.dueTime));
-  const msRemaining = maxDue - Date.now();
-  const secs = Math.max(0, Math.ceil(msRemaining / 1000));
-  const text = 'UP' + secs + (count > 1 ? '+' : '');
+  const now = Date.now();
+  let maxRemaining = 0;
+  pendingEntries.forEach(item => {
+    const remaining = item.endTime - now;
+    if (remaining > maxRemaining) {
+      maxRemaining = remaining;
+    }
+  });
+  const seconds = Math.max(0, Math.ceil(maxRemaining / 1000));
+  let text = `UP${seconds}`;
+  if (pendingEntries.length > 1) {
+    text += '+';
+  }
   chrome.action.setBadgeText({ text });
 }
 
-// Send queue update to popup; ignore error if no listener
+// Send queue update to any listeners (popup). Catch errors if no listener.
 function sendQueueUpdate() {
-  const queue = pendingEntries.map(item => ({
-    id: item.id,
-    word: item.word,
-    dueTime: item.dueTime
-  }));
+  const queue = pendingEntries.map(item => {
+    return { id: item.id, word: item.entry.word, dueTime: item.endTime };
+  });
   chrome.runtime.sendMessage({ type: 'QUEUE_UPDATE', queue }, () => {
-    if (chrome.runtime.lastError) {
-      // no listeners, ignore
-    }
+    const err = chrome.runtime.lastError;
+    // ignore if no listener
   });
 }
 
-// Handle messages from content script or popup
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'WORD_SELECTED') {
-    const { word, sentence, position } = msg;
-    const id = crypto.randomUUID();
-    const dueTime = Date.now() + waitTime;
-    const entry = { id, word, sentence, position, dueTime, timerId: null };
-    // schedule upload after waitTime
-    entry.timerId = setTimeout(() => {
-      pendingEntries = pendingEntries.filter(e => e.id !== entry.id);
-      updateBadge();
-      sendQueueUpdate();
-      uploadToNotion(entry);
-    }, waitTime);
-    pendingEntries.push(entry);
+function scheduleUpload(item) {
+  item.endTime = Date.now() + waitTime;
+  item.timerId = setTimeout(() => {
+    // on timeout remove item and upload
+    pendingEntries = pendingEntries.filter(i => i.id !== item.id);
     updateBadge();
     sendQueueUpdate();
+    uploadToNotion(item.entry);
+  }, waitTime);
+  updateBadge();
+  sendQueueUpdate();
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'WORD_SELECTED') {
+    const id = Date.now().toString() + Math.random().toString(16).slice(2);
+    const item = { id, entry: msg, timerId: null, endTime: Date.now() + waitTime };
+    pendingEntries.push(item);
+    scheduleUpload(item);
   } else if (msg.type === 'CANCEL_UPLOAD') {
-    const { id } = msg;
-    const idx = pendingEntries.findIndex(item => item.id === id);
-    if (idx >= 0) {
-      clearTimeout(pendingEntries[idx].timerId);
-      pendingEntries.splice(idx, 1);
+    const id = msg.id;
+    const item = pendingEntries.find(i => i.id === id);
+    if (item) {
+      clearTimeout(item.timerId);
+      pendingEntries = pendingEntries.filter(i => i.id !== id);
       updateBadge();
       sendQueueUpdate();
     }
   } else if (msg.type === 'SET_WAIT_TIME') {
-    const newMs = msg.waitTime;
-    waitTime = newMs;
-    chrome.storage.local.set({ waitTime: newMs });
-    // reschedule existing entries with new waitTime from now
-    const now = Date.now();
+    waitTime = msg.waitTime;
+    chrome.storage.local.set({ waitTime });
+    // reschedule existing items with new wait time from now
     pendingEntries.forEach(item => {
       clearTimeout(item.timerId);
-      item.dueTime = now + waitTime;
+      item.endTime = Date.now() + waitTime;
       item.timerId = setTimeout(() => {
-        pendingEntries = pendingEntries.filter(e => e.id !== item.id);
+        pendingEntries = pendingEntries.filter(i => i.id !== item.id);
         updateBadge();
         sendQueueUpdate();
-        uploadToNotion(item);
+        uploadToNotion(item.entry);
       }, waitTime);
     });
     updateBadge();
@@ -88,7 +92,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Periodically update countdowns and badge every second
+// periodically update countdowns and badge every second
 setInterval(() => {
   if (pendingEntries.length > 0) {
     updateBadge();
@@ -96,7 +100,7 @@ setInterval(() => {
   }
 }, 1000);
 
-// Placeholder for Notion upload
 function uploadToNotion(entry) {
-  console.log('Uploading', entry.word);
+  // TODO: implement actual Notion upload
+  console.log('Uploading to Notion:', entry.word);
 }
