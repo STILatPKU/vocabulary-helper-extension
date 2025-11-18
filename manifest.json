@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Vocabulary Helper Extension",
+  "version": "0.1.0",
+  "description": "Capture selected words, query definitions via Definer and record into Notion after delay.",
+  "permissions": ["contextMenus", "storage", "tabs", "scripting", "sidePanel"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "wordbook.html"
+  }
+}
