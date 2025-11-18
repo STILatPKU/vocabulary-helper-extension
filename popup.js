@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
   const queueDiv = document.getElementById('queue');
-  const waitInput = document.getElementById('waitTimeInput');
-  const saveBtn = document.getElementById('saveWait');
 
   function renderQueue(queue) {
     queueDiv.innerHTML = '';
@@ -17,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
       wordSpan.textContent = item.word;
       const countdownSpan = document.createElement('span');
       countdownSpan.className = 'countdown';
-      countdownSpan.textContent = item.countdown + 's';
+      const msRemaining = item.dueTime - Date.now();
+      const seconds = Math.max(0, Math.ceil(msRemaining / 1000));
+      countdownSpan.textContent = seconds + 's';
       const cancelBtn = document.createElement('button');
       cancelBtn.className = 'cancel-btn';
       cancelBtn.textContent = 'Cancel';
@@ -41,18 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // load existing wait time from storage
-  chrome.storage.local.get({ waitTime: 5000 }, (data) => {
-    waitInput.value = Math.round(data.waitTime / 1000);
-  });
-
-  saveBtn.addEventListener('click', () => {
-    const value = parseInt(waitInput.value, 10);
-    if (!isNaN(value) && value > 0) {
-      const ms = value * 1000;
-      chrome.runtime.sendMessage({ type: 'SET_WAIT_TIME', waitTime: ms });
-    }
-  });
-
+  // initial load
   requestQueue();
 });
