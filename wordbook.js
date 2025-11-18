@@ -1,45 +1,45 @@
+// wordbook.js — 侧边栏设置脚本
 document.addEventListener('DOMContentLoaded', () => {
-  const waitInput = document.getElementById('waitTime');
-  const apiKeyInput = document.getElementById('apiKey');
-  const dbIdInput = document.getElementById('dbId');
-  const saveBtn = document.getElementById('saveBtn');
-  const status = document.getElementById('status');
+  const waitInput = document.getElementById('waitTimeInput');
+  const keyInput = document.getElementById('notionKeyInput');
+  const dbInput = document.getElementById('notionDbInput');
+  const saveBtn = document.getElementById('saveSettings');
+  const statusSpan = document.getElementById('status');
 
-  // Load saved settings
+  // 读取保存的设置
   chrome.storage.local.get(['waitTime', 'notionApiKey', 'notionDatabaseId'], (data) => {
     if (typeof data.waitTime === 'number') {
       waitInput.value = (data.waitTime / 1000).toString();
     }
     if (data.notionApiKey) {
-      apiKeyInput.value = data.notionApiKey;
+      keyInput.value = data.notionApiKey;
     }
     if (data.notionDatabaseId) {
-      dbIdInput.value = data.notionDatabaseId;
+      dbInput.value = data.notionDatabaseId;
     }
   });
 
+  // 保存设置并通知后台更新等待时间
   saveBtn.addEventListener('click', () => {
     const newWait = parseInt(waitInput.value, 10);
-    const newApiKey = apiKeyInput.value.trim();
-    const newDbId = dbIdInput.value.trim();
+    const newApiKey = keyInput.value.trim();
+    const newDbId = dbInput.value.trim();
     const updates = {};
     if (!isNaN(newWait) && newWait > 0) {
       updates.waitTime = newWait * 1000;
     }
-    if (newApiKey) {
-      updates.notionApiKey = newApiKey;
-    }
-    if (newDbId) {
-      updates.notionDatabaseId = newDbId;
-    }
+    updates.notionApiKey = newApiKey;
+    updates.notionDatabaseId = newDbId;
+
     chrome.storage.local.set(updates, () => {
-      // send waitTime update if changed
       if (!isNaN(newWait) && newWait > 0) {
+        // 通知后台更新等待时间
         chrome.runtime.sendMessage({ type: 'SET_WAIT_TIME', waitTime: newWait * 1000 });
       }
-      status.textContent = '已保存';
+      // 显示提示消息
+      statusSpan.textContent = '已保存';
       setTimeout(() => {
-        status.textContent = '';
+        statusSpan.textContent = '';
       }, 2000);
     });
   });
