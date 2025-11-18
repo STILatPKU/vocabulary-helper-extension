@@ -1,4 +1,6 @@
-// Content script to capture selected word on double click and context and send to background
+/**
+ * Content script to capture selected word on double click and context and send to background
+ */
 
 function getSentence(range) {
   const node = range.startContainer;
@@ -23,15 +25,20 @@ function getSentence(range) {
   return sentence;
 }
 
-function getXPath(element) {
-  if (element && element.id) {
-    return 'id("' + element.id + '")';
+function getXPath(node) {
+  // if node is not an element, walk up to its parent
+  if (!node || node.nodeType !== 1) {
+    return node && node.parentNode ? getXPath(node.parentNode) : '/html/body';
   }
-  if (!element || element === document.body) {
+  if (node.id) {
+    return 'id("' + node.id + '")';
+  }
+  if (node === document.body) {
     return '/html/body';
   }
-  const ix = Array.prototype.indexOf.call(element.parentNode.childNodes, element) + 1;
-  return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + ix + ']';
+  const siblings = Array.from(node.parentNode.children);
+  const ix = siblings.indexOf(node) + 1;
+  return getXPath(node.parentNode) + '/' + node.tagName.toLowerCase() + '[' + ix + ']';
 }
 
 function handleDoubleClick(e) {
