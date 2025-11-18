@@ -1,42 +1,59 @@
-// Content script to capture selected word and context and send to background
+// Content script to capture selected word on double click and context and send to background
 
 function getSentence(range) {
-  const container = range.startContainer;
-  let text = '';
-  if (container && container.textContent) {
-    text = container.textContent.trim();
+  const node = range.startContainer;
+  const parent = node.parentElement || node;
+  const fullText = parent.innerText || parent.textContent || '';
+  const word = range.toString();
+  const idx = fullText.indexOf(word);
+  if (idx === -1) {
+    return fullText.trim();
   }
-  return text;
+  const before = fullText.slice(0, idx);
+  const startIdx = Math.max(before.lastIndexOf('.'), before.lastIndexOf('!'), before.lastIndexOf('?')) + 1;
+  const after = fullText.slice(idx + word.length);
+  const endIndices = [after.indexOf('.'), after.indexOf('!'), after.indexOf('?')].filter(i => i !== -1);
+  let endOffset;
+  if (endIndices.length > 0) {
+    endOffset = idx + word.length + Math.min(...endIndices) + 1;
+  } else {
+    endOffset = fullText.length;
+  }
+  const sentence = fullText.slice(startIdx, endOffset).trim();
+  return sentence;
 }
 
 function getXPath(element) {
-  if (!element) return '';
-  let segs = [];
-  for (let el = element.nodeType === 3 ? element.parentNode : element; el && el.nodeType === 1; el = el.parentNode) {
-    let i = 1;
-    let sib;
-    for (sib = el.previousSibling; sib; sib = sib.previousSibling) {
-      if (sib.nodeType === 1 && sib.nodeName === el.nodeName) i++;
-    }
-    segs.unshift(el.nodeName.toLowerCase() + '[' + i + ']');
+  if (element && element.id) {
+    return 'id("' + element.id + '")';
   }
-  return '/' + segs.join('/');
+  if (!element || element === document.body) {
+    return '/html/body';
+  }
+  const ix = Array.prototype.indexOf.call(element.parentNode.childNodes, element) + 1;
+  return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + ix + ']';
 }
 
-document.addEventListener('mouseup', (e) => {
-  const sel = window.getSelection();
-  const text = sel.toString().trim();
-  if (!text) return;
-  // treat as word if single word or ctrl key pressed
-  if (!e.ctrlKey && text.split(/\s+/).length > 3) {
+function handleDoubleClick(e) {
+  const selection = window.getSelection();
+  const text = selection ? selection.toString().trim() : '';
+  if (!text) {
     return;
   }
-  const range = sel.getRangeAt(0);
+  const range = selection.getRangeAt(0);
   const sentence = getSentence(range);
+  const xpath = getXPath(range.startContainer);
   const position = {
     url: window.location.href,
     scrollY: window.scrollY,
-    xpath: getXPath(range.startContainer)
+    xpath: xpath
   };
-  chrome.runtime.sendMessage({ type: 'WORD_SELECTED', word: text, sentence, position });
-});
+  chrome.runtime.sendMessage({
+    type: 'WORD_SELECTED',
+    word: text,
+    sentence: sentence,
+    position: position
+  });
+}
+
+document.addEventListener('dblclick', handleDoubleClick);
