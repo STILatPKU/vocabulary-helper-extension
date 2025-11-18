@@ -1,11 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Wordbook</title>
+<meta charset="UTF-8">
+<title>Wordbook / Settings</title>
+<style>
+body { font-family: sans-serif; margin: 10px; }
+#settings { margin-top: 20px; }
+#settings label { display: block; margin-top: 8px; }
+#status { margin-left: 10px; color: green; }
+</style>
 </head>
 <body>
-  <h1>Wordbook Page</h1>
-  <p>This page is a placeholder for the wordbook side panel. Functionality to view saved words can be added later.</p>
+<h1>Settings</h1>
+<div id="settings">
+  <label for="waitTimeInput">Wait Time (seconds):</label>
+  <input type="number" id="waitTimeInput" min="1">
+  <label for="notionKeyInput">Notion API Key:</label>
+  <input type="password" id="notionKeyInput">
+  <label for="notionDbInput">Notion Database ID:</label>
+  <input type="text" id="notionDbInput">
+  <button id="saveSettings">Save</button><span id="status"></span>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const waitInput = document.getElementById('waitTimeInput');
+  const notionKeyInput = document.getElementById('notionKeyInput');
+  const notionDbInput = document.getElementById('notionDbInput');
+  const status = document.getElementById('status');
+  chrome.storage.local.get({ waitTime: 5000, notionKey: '', notionDb: '' }, (data) => {
+    waitInput.value = Math.round(data.waitTime / 1000);
+    notionKeyInput.value = data.notionKey || '';
+    notionDbInput.value = data.notionDb || '';
+  });
+  document.getElementById('saveSettings').addEventListener('click', () => {
+    const wt = parseInt(waitInput.value, 10);
+    const ms = (!isNaN(wt) && wt > 0 ? wt * 1000 : 5000);
+    const key = notionKeyInput.value.trim();
+    const db = notionDbInput.value.trim();
+    chrome.storage.local.set({ waitTime: ms, notionKey: key, notionDb: db }, () => {
+      chrome.runtime.sendMessage({ type: 'SET_WAIT_TIME', waitTime: ms });
+      status.textContent = 'Saved';
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    });
+  });
+});
+</script>
 </body>
 </html>
