@@ -1,25 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Pending uploads</title>
-  <style>
-    body { font-family: sans-serif; min-width: 250px; }
-    #queue { margin-top: 10px; }
-    .item { border: 1px solid #ccc; padding: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-    .word { font-weight: bold; }
-    .countdown { margin-left: 4px; }
-    .cancel-btn { margin-left: 8px; }
-    #settings { margin-top: 10px; }
-  </style>
+<meta charset="utf-8">
+<title>Pending uploads</title>
+<style>
+body { font-family: sans-serif; min-width: 250px; }
+#queue { margin-top: 10px; }
+.item { border: 1px solid #ccc; padding: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.word { font-weight: bold; }
+.countdown { margin-left: 4px; }
+.cancel-btn { margin-left: 8px; }
+</style>
 </head>
 <body>
-  <div id="queue"></div>
-  <div id="settings">
-    <label for="waitTimeInput">Wait time (seconds):</label>
-    <input type="number" id="waitTimeInput" min="1" value="5" style="width: 60px;">
-    <button id="saveWait">Save</button>
-  </div>
-  <script src="popup.js"></script>
+<div id="queue"></div>
+<script src="popup.js"></script>
 </body>
 </html>
