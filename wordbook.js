@@ -36,6 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // 通知后台更新等待时间
         chrome.runtime.sendMessage({ type: 'SET_WAIT_TIME', waitTime: newWait * 1000 });
       }
+      // 通知后台更新notion密钥
+      chrome.runtime.sendMessage({
+        type: "SET_NOTION_CONFIG",
+        apiKey: newApiKey,
+        dbId: newDbId
+      });
+
       // 显示提示消息
       statusSpan.textContent = '已保存';
       setTimeout(() => {
