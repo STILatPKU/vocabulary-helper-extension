@@ -92,12 +92,24 @@ chrome.runtime.onMessage.addListener((msg) => {
         sendQueueUpdate();
         uploadToNotion(item.entry);
       }, waitTime);
+      
     });
 
     updateBadge();
     sendQueueUpdate();
 
-  } else if (msg.type === "GET_QUEUE") {
+  } else if (msg.type === "SET_NOTION_CONFIG") {
+    notionApiKey = msg.apiKey || null;
+    notionDatabaseId = msg.dbId || null;
+
+    chrome.storage.local.set({
+      notionApiKey,
+      notionDatabaseId
+    });
+
+    console.log("Notion 设置已更新：", notionApiKey, notionDatabaseId);
+    
+} else if (msg.type === "GET_QUEUE") {
     sendQueueUpdate();
   }
 });
