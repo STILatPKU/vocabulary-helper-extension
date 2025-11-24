@@ -6,12 +6,19 @@ let pendingEntries = []; // array of pending word entries
 // 从本地读取 Notion 设置（由用户在设置页填写）
 let notionApiKey = null;
 let notionDatabaseId = null;
+let uploadWithoutDefinition = true; // 是否上传无释义单词，默认 true
 
-chrome.storage.local.get(["waitTime", "notionApiKey", "notionDatabaseId"], (data) => {
-  if (typeof data.waitTime === "number") waitTime = data.waitTime;
-  if (data.notionApiKey) notionApiKey = data.notionApiKey;
-  if (data.notionDatabaseId) notionDatabaseId = data.notionDatabaseId;
-});
+chrome.storage.local.get(
+  ["waitTime", "notionApiKey", "notionDatabaseId", "uploadWithoutDefinition"],
+  (data) => {
+    if (typeof data.waitTime === "number") waitTime = data.waitTime;
+    if (data.notionApiKey) notionApiKey = data.notionApiKey;
+    if (data.notionDatabaseId) notionDatabaseId = data.notionDatabaseId;
+    if (typeof data.uploadWithoutDefinition === "boolean") {
+      uploadWithoutDefinition = data.uploadWithoutDefinition;
+    }
+  }
+);
 
 // --- Badge & Queue UI 更新逻辑 ---
 function updateBadge() {
@@ -42,27 +49,51 @@ function sendQueueUpdate() {
   });
 }
 
-// --- 调度上传 ---
-function scheduleUpload(item) {
+// --- 启动某个条目的倒计时定时器 ---
+function startItemTimer(item) {
   item.endTime = Date.now() + waitTime;
-  item.timerId = setTimeout(() => {
+  item.timerId = setTimeout(async () => {
+    // 定时器触发：从队列移除该项
     pendingEntries = pendingEntries.filter((i) => i.id !== item.id);
     updateBadge();
     sendQueueUpdate();
-    uploadToNotion(item.entry);
+
+    try {
+      // 等待释义完成（如果还在查询中）
+      let meaningRichText = item.meaningRichText;
+      if (!meaningRichText) {
+        meaningRichText = await item.definitionPromise;
+        item.meaningRichText = meaningRichText;
+      }
+
+      await uploadToNotion(item.entry, meaningRichText);
+    } catch (err) {
+      console.error("处理上传时出错：", err);
+    }
   }, waitTime);
 
   updateBadge();
   sendQueueUpdate();
 }
 
+// --- 调度上传（创建定时器） ---
+function scheduleUpload(item) {
+  startItemTimer(item);
+}
+
 // --- 监听 content script & popup ---
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "WORD_SELECTED") {
     const id = Date.now().toString() + Math.random().toString(16).slice(2);
+
+    // 选中单词后立即开始查询释义（异步）
+    const definitionPromise = fetchDefinitionFromDefiner(msg.word);
+
     const item = {
       id,
       entry: msg,
+      definitionPromise,   // Promise<rich_text[]>
+      meaningRichText: null, // 缓存结果，避免重复 await
       timerId: null,
       endTime: Date.now() + waitTime,
     };
@@ -83,16 +114,10 @@ chrome.runtime.onMessage.addListener((msg) => {
     waitTime = msg.waitTime;
     chrome.storage.local.set({ waitTime });
 
+    // 重置所有条目的倒计时
     pendingEntries.forEach((item) => {
       clearTimeout(item.timerId);
-      item.endTime = Date.now() + waitTime;
-      item.timerId = setTimeout(() => {
-        pendingEntries = pendingEntries.filter((i) => i.id !== item.id);
-        updateBadge();
-        sendQueueUpdate();
-        uploadToNotion(item.entry);
-      }, waitTime);
-      
+      startItemTimer(item);
     });
 
     updateBadge();
@@ -104,12 +129,17 @@ chrome.runtime.onMessage.addListener((msg) => {
 
     chrome.storage.local.set({
       notionApiKey,
-      notionDatabaseId
+      notionDatabaseId,
     });
 
     console.log("Notion 设置已更新：", notionApiKey, notionDatabaseId);
-    
-} else if (msg.type === "GET_QUEUE") {
+
+  } else if (msg.type === "SET_UPLOAD_OPTION") {
+    uploadWithoutDefinition = !!msg.uploadWithoutDefinition;
+    chrome.storage.local.set({ uploadWithoutDefinition });
+    console.log("上传无释义单词选项已更新：", uploadWithoutDefinition);
+
+  } else if (msg.type === "GET_QUEUE") {
     sendQueueUpdate();
   }
 });
@@ -135,16 +165,14 @@ async function fetchDefinitionFromDefiner(word) {
     if (!resp.ok) {
       console.warn("Definer API 查询失败：", resp.status);
       return [
-        { type: "text", text: { content: "(definition unavailable)" } }
+        { type: "text", text: { content: "(definition unavailable)" } },
       ];
     }
 
     const data = await resp.json();
 
     if (!Array.isArray(data) || data.length === 0) {
-      return [
-        { type: "text", text: { content: "(no definition)" } }
-      ];
+      return [{ type: "text", text: { content: "(no definition)" } }];
     }
 
     const entry = data[0];
@@ -156,77 +184,86 @@ async function fetchDefinitionFromDefiner(word) {
     for (const partOfSpeech in meaning) {
       const definitions = meaning[partOfSpeech].definitions || [];
 
-      definitions.forEach((defObj, idx) => {
+      definitions.forEach((defObj) => {
         const definition = defObj.definition || "";
         const example = defObj.example || null;
 
-        // ----------------------------
         // 1. 词性 — 加粗
-        // ----------------------------
         richTexts.push({
           type: "text",
           text: { content: `${partOfSpeech}\n` },
-          annotations: { bold: true }
+          annotations: { bold: true },
         });
 
-        // ----------------------------
         // 2. 释义 — 普通文本
-        // ----------------------------
         richTexts.push({
           type: "text",
-          text: { content: definition + "\n" }
+          text: { content: definition + "\n" },
         });
 
-        // ----------------------------
         // 3. 例句（如果存在）— 斜体 + 灰色
-        // ----------------------------
         if (example) {
           richTexts.push({
             type: "text",
             text: { content: `${example}\n` },
-            annotations: { italic: true, color: "gray" }
+            annotations: { italic: true, color: "gray" },
           });
         }
 
         // 空行分隔不同释义
         richTexts.push({
           type: "text",
-          text: { content: "\n" }
+          text: { content: "\n" },
         });
       });
     }
 
     // 防御性：至少返回一个元素
     if (richTexts.length === 0) {
-      return [
-        { type: "text", text: { content: "(no definition)" } }
-      ];
+      return [{ type: "text", text: { content: "(no definition)" } }];
     }
 
     return richTexts;
-
   } catch (err) {
     console.error("❌ Definer API 查询错误：", err);
-    return [
-      { type: "text", text: { content: "(definition error)" } }
-    ];
+    return [{ type: "text", text: { content: "(definition error)" } }];
   }
 }
-
 
 // -----------------------------------------------------
 // Notion 上传逻辑（使用字段：Word / Meaning / Sentence / Source URL / Page Location / Time）
 // -----------------------------------------------------
 
-async function uploadToNotion(entry) {
+async function uploadToNotion(entry, meaningRichText) {
   // 如果用户还没有配置 Notion API，则忽略上传
   if (!notionApiKey || !notionDatabaseId) {
     console.warn("Notion API Key / Database ID 未设置，跳过上传");
     return;
   }
- 
-  // 🔥 获取释义（来自 Definer API）
-  const meaningRichText = await fetchDefinitionFromDefiner(entry.word);
+
+  // 安全兜底：如果没拿到释义，调用一次（理论上 definitionPromise 已处理）
+  if (!meaningRichText) {
+    meaningRichText = await fetchDefinitionFromDefiner(entry.word);
+  }
+
+  // 按设置决定是否跳过无释义的单词
+  if (!uploadWithoutDefinition) {
+    const isNoMeaning =
+      !meaningRichText ||
+      meaningRichText.length === 0 ||
+      (meaningRichText.length === 1 &&
+        typeof meaningRichText[0]?.text?.content === "string" &&
+        (
+          meaningRichText[0].text.content.includes("(no definition)") ||
+          meaningRichText[0].text.content.includes("(definition unavailable)") ||
+          meaningRichText[0].text.content.includes("(definition error)")
+        ));
+
+    if (isNoMeaning) {
+      console.warn("根据设置，跳过无释义单词：", entry.word);
+      return;
+    }
+  }
 
   // 构造 Notion 请求
   const notionPayload = {
@@ -240,15 +277,10 @@ async function uploadToNotion(entry) {
         rich_text: [{ text: { content: entry.sentence || "" } }],
       },
       "Source URL": { url: entry.position?.url || null },
-      "Page Location": {
-        rich_text: [
-          {
-            text: {
-              content: `scrollY=${entry.position?.scrollY || 0}\nxpath=${entry.position?.xpath || ""}`,
-            },
-          },
-        ],
+      "Jump Back": {
+        url: `${entry.position.url}#highlight=${encodeURIComponent(entry.position.xpath + ":::" + entry.word)}`
       },
+
       Time: {
         date: { start: new Date().toISOString() },
       },
@@ -273,7 +305,6 @@ async function uploadToNotion(entry) {
     }
 
     console.log(`✅ 已上传：${entry.word}`);
-
   } catch (err) {
     console.error("❌ 上传到 Notion 时出错:", err);
   }
