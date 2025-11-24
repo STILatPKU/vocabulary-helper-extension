@@ -42,6 +42,17 @@ function getXPath(node) {
 }
 
 function handleDoubleClick(e) {
+  // 🚫 1. 输入框、密码框、textarea 不处理
+  const target = e.target;
+  const tag = target.tagName.toLowerCase();
+  if (
+    tag === "input" ||
+    tag === "textarea" ||
+    target.isContentEditable
+  ) {
+    return;
+  }
+
   const selection = window.getSelection();
   const text = selection ? selection.toString().trim() : '';
   if (!text) {
