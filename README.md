@@ -118,3 +118,18 @@ Notion 中生成 Jump Back 链接
      ↓
 页面加载 → content.js 自动 XPath 定位 → 高亮词汇
 ```
+
+**TODO（开发计划汇总）：**
+
+1. **词典增强**
+   - 添加音标字段上传（phonetic）
+   - 可选上传音频 URL
+2. **来源信息增强**
+   - 上传网页标题（Source Title）
+3. **Notion 视图增强**
+   - 创建“按日期综合”视图（本周/本月）
+   - 创建“按来源综合”视图（按 Source Title 分组）
+4. **设置系统重构**
+   - 将 sidepanel 设置迁移为 Chrome Options Page
+   - 新增 options.html & options.js
+   - 更新 manifest.json 配置
