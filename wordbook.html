@@ -13,14 +13,22 @@ body { font-family: sans-serif; margin: 10px; }
 <body>
 <h1>Settings</h1>
 <div id="settings">
-<label for="waitTimeInput">Wait Time (seconds):</label>
-<input type="number" id="waitTimeInput" min="1">
-<label for="notionKeyInput">Notion API Key:</label>
-<input type="password" id="notionKeyInput">
-<label for="notionDbInput">Notion Database ID:</label>
-<input type="text" id="notionDbInput">
-<button id="saveSettings">Save</button>
-<span id="status"></span>
+  <label for="waitTimeInput">Wait Time (seconds):</label>
+  <input type="number" id="waitTimeInput" min="1">
+
+  <label for="notionKeyInput">Notion API Key:</label>
+  <input type="password" id="notionKeyInput">
+
+  <label for="notionDbInput">Notion Database ID:</label>
+  <input type="text" id="notionDbInput">
+
+  <label>
+    <input type="checkbox" id="uploadWithoutDefinition">
+    Upload words even if no definition is found
+  </label>
+
+  <button id="saveSettings">Save</button>
+  <span id="status"></span>
 </div>
 <script src="wordbook.js"></script>
 </body>
