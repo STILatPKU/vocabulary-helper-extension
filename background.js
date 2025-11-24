@@ -122,6 +122,98 @@ setInterval(() => {
   }
 }, 1000);
 
+// ------------------------------------------------------------
+// Definer API：获取所有词性/释义/例句（返回 Notion rich_text）
+// ------------------------------------------------------------
+async function fetchDefinitionFromDefiner(word) {
+  const url = `https://lumetrium.com/dictionary-api/v1/entries/en/${encodeURIComponent(
+    word
+  )}`;
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.warn("Definer API 查询失败：", resp.status);
+      return [
+        { type: "text", text: { content: "(definition unavailable)" } }
+      ];
+    }
+
+    const data = await resp.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      return [
+        { type: "text", text: { content: "(no definition)" } }
+      ];
+    }
+
+    const entry = data[0];
+    const meaning = entry.meaning || {};
+
+    // 🔥 富文本数组
+    let richTexts = [];
+
+    for (const partOfSpeech in meaning) {
+      const definitions = meaning[partOfSpeech].definitions || [];
+
+      definitions.forEach((defObj, idx) => {
+        const definition = defObj.definition || "";
+        const example = defObj.example || null;
+
+        // ----------------------------
+        // 1. 词性 — 加粗
+        // ----------------------------
+        richTexts.push({
+          type: "text",
+          text: { content: `${partOfSpeech}\n` },
+          annotations: { bold: true }
+        });
+
+        // ----------------------------
+        // 2. 释义 — 普通文本
+        // ----------------------------
+        richTexts.push({
+          type: "text",
+          text: { content: definition + "\n" }
+        });
+
+        // ----------------------------
+        // 3. 例句（如果存在）— 斜体 + 灰色
+        // ----------------------------
+        if (example) {
+          richTexts.push({
+            type: "text",
+            text: { content: `${example}\n` },
+            annotations: { italic: true, color: "gray" }
+          });
+        }
+
+        // 空行分隔不同释义
+        richTexts.push({
+          type: "text",
+          text: { content: "\n" }
+        });
+      });
+    }
+
+    // 防御性：至少返回一个元素
+    if (richTexts.length === 0) {
+      return [
+        { type: "text", text: { content: "(no definition)" } }
+      ];
+    }
+
+    return richTexts;
+
+  } catch (err) {
+    console.error("❌ Definer API 查询错误：", err);
+    return [
+      { type: "text", text: { content: "(definition error)" } }
+    ];
+  }
+}
+
+
 // -----------------------------------------------------
 // Notion 上传逻辑（使用字段：Word / Meaning / Sentence / Source URL / Page Location / Time）
 // -----------------------------------------------------
@@ -132,6 +224,9 @@ async function uploadToNotion(entry) {
     console.warn("Notion API Key / Database ID 未设置，跳过上传");
     return;
   }
+ 
+  // 🔥 获取释义（来自 Definer API）
+  const meaningRichText = await fetchDefinitionFromDefiner(entry.word);
 
   // 构造 Notion 请求
   const notionPayload = {
@@ -139,7 +234,7 @@ async function uploadToNotion(entry) {
     properties: {
       Word: { title: [{ text: { content: entry.word } }] },
       Meaning: {
-        rich_text: [{ text: { content: "(待查询或用户补充的释义)" } }],
+        rich_text: meaningRichText,
       },
       Sentence: {
         rich_text: [{ text: { content: entry.sentence || "" } }],
