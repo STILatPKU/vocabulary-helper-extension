@@ -55,6 +55,36 @@ function getXPath(node) {
 }
 
 /* ---------------- Single-Word Highlight (Span-Wrap) ---------------- */
+function smoothInertialScrollTo(targetY, duration = 600) {
+  const startY = window.scrollY;
+  const diff = targetY - startY;
+  const start = performance.now();
+
+  function step(now) {
+    const time = now - start;
+    const percent = Math.min(time / duration, 1);
+
+    // ease-out cubic (自然惯性)
+    const ease = 1 - Math.pow(1 - percent, 3);
+
+    window.scrollTo(0, startY + diff * ease);
+
+    if (percent < 1) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+function scrollElementToCenter(el) {
+  const rect = el.getBoundingClientRect();
+  const absoluteY = rect.top + window.scrollY;
+  const centerY = absoluteY - window.innerHeight / 2 + rect.height / 2;
+
+  smoothInertialScrollTo(centerY);
+}
+
 
 function highlightWordInsideElement(element, targetWord) {
   if (!element || !targetWord) return;
@@ -79,17 +109,21 @@ function highlightWordInsideElement(element, targetWord) {
       wrapper.style.transition = "background-color 1.5s ease";
 
       range.surroundContents(wrapper);
-      wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+      console.log("🔶 Highlighted word:", targetWord);
+
+      // 🌟 强制居中滚动，解决长页面定位失败问题
+      scrollElementToCenter(wrapper);
 
       // Fade highlight
       setTimeout(() => {
         wrapper.style.backgroundColor = "";
-      }, 2000);
+      }, 5000);
 
       break;
     }
   }
 }
+
 
 /* ---------------- Double-Click Handler ---------------- */
 
@@ -147,7 +181,7 @@ function highlightFromHash() {
   const decoded = decodeURIComponent(raw);
 
   // Format: xpath:::word
-  const parts = decoded.split(":::");
+  const [xpath, word] = decoded.split(":::");
   
   smartHighlight(xpath,word);
 }
@@ -165,6 +199,7 @@ function waitForElementByXPath(xpath, maxWait = 8000) {
     function tryFind() {
       const el = getElementByXPath(xpath);
       if (el) {
+        console.log("✅ 元素已找到（轮询）:", xpath);
         resolve(el);
         return;
       }
@@ -185,6 +220,7 @@ function waitForElementWithObserver(xpath, callback, maxWait = 8000) {
   const tryResolve = async () => {
     const el = getElementByXPath(xpath);
     if (el) {
+      console.log("✅ 元素已找到（MutationObserver）:", xpath);
       done = true;
       observer.disconnect();
       callback(el);
