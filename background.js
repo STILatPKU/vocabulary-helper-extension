@@ -276,6 +276,9 @@ async function uploadToNotion(entry, meaningRichText) {
       Sentence: {
         rich_text: [{ text: { content: entry.sentence || "" } }],
       },
+      "Source Title": {
+          rich_text: [{ text: { content: entry.position?.title || "" }}]
+      },
       "Source URL": { url: entry.position?.url || null },
       "Jump Back": {
         url: `${entry.position.url}#highlight=${encodeURIComponent(entry.position.xpath + ":::" + entry.word)}`

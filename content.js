@@ -109,7 +109,8 @@ function handleDoubleClick(e) {
 
   const position = {
     url: window.location.href.split("#")[0], // remove possible hash
-    xpath: xpath
+    xpath: xpath,
+    title: document.title
   };
 
   chrome.runtime.sendMessage({
@@ -147,13 +148,80 @@ function highlightFromHash() {
 
   // Format: xpath:::word
   const parts = decoded.split(":::");
-  const xpath = parts[0];
-  const word = parts[1];
-
-  const el = getElementByXPath(xpath);
-  if (!el) return;
-
-  highlightWordInsideElement(el, word);
+  
+  smartHighlight(xpath,word);
 }
 
 highlightFromHash();
+
+/* ============================================================
+   动态页面智能恢复系统（轮询 + MutationObserver）
+   ============================================================ */
+
+function waitForElementByXPath(xpath, maxWait = 8000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+
+    function tryFind() {
+      const el = getElementByXPath(xpath);
+      if (el) {
+        resolve(el);
+        return;
+      }
+      if (Date.now() - start > maxWait) {
+        resolve(null); // 超时，返回 null
+        return;
+      }
+      requestAnimationFrame(tryFind);
+    }
+    tryFind();
+  });
+}
+
+function waitForElementWithObserver(xpath, callback, maxWait = 8000) {
+  let done = false;
+  const start = Date.now();
+
+  const tryResolve = async () => {
+    const el = getElementByXPath(xpath);
+    if (el) {
+      done = true;
+      observer.disconnect();
+      callback(el);
+    } else if (Date.now() - start > maxWait) {
+      done = true;
+      observer.disconnect();
+      callback(null);
+    }
+  };
+
+  const observer = new MutationObserver(() => {
+    if (!done) tryResolve();
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  tryResolve();
+}
+
+async function smartHighlight(xpath, word) {
+  // ① 先用轮询查找元素
+  let el = await waitForElementByXPath(xpath, 5000);
+
+  if (!el) {
+    // ② 轮询找不到 → 使用 MutationObserver
+    return waitForElementWithObserver(xpath, (el) => {
+      if (el) {
+        highlightWordInsideElement(el, word);
+      } else {
+        console.warn("智能恢复失败：未找到元素", xpath);
+      }
+    });
+  }
+
+  // 找到了
+  highlightWordInsideElement(el, word);
+}
