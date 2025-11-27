@@ -16,7 +16,7 @@ Chrome 扩展：在网页中双击取词，自动查释义并同步到 Notion，
 ## Notion 数据库准备
 在 Notion 新建数据库并添加字段：
 - Word（标题）
-- Phonetic（富文本，可选）
+- Phonetic（富文本）
 - Meaning（富文本）
 - Sentence（富文本）
 - Source Title（富文本）
