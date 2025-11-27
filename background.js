@@ -60,13 +60,23 @@ function startItemTimer(item) {
 
     try {
       // 等待释义完成（如果还在查询中）
-      let meaningRichText = item.meaningRichText;
-      if (!meaningRichText) {
-        meaningRichText = await item.definitionPromise;
-        item.meaningRichText = meaningRichText;
+      let definitionResult = null;
+      if (item.meaningRichText) { // 已经缓存结果
+        definitionResult = {
+          meaningRichText: item.meaningRichText,
+          phonetic: item.phonetic,
+        };
+      } else {
+        definitionResult = await item.definitionPromise;
+        item.meaningRichText = definitionResult.meaningRichText;
+        item.phonetic = definitionResult.phonetic;
       }
 
-      await uploadToNotion(item.entry, meaningRichText);
+      await uploadToNotion(
+        item.entry,
+        definitionResult.meaningRichText,
+        definitionResult.phonetic
+      );
     } catch (err) {
       console.error("处理上传时出错：", err);
     }
@@ -92,8 +102,9 @@ chrome.runtime.onMessage.addListener((msg) => {
     const item = {
       id,
       entry: msg,
-      definitionPromise,   // Promise<rich_text[]>
+      definitionPromise,   // Promise<{ meaningRichText, phonetic }>
       meaningRichText: null, // 缓存结果，避免重复 await
+      phonetic: null,
       timerId: null,
       endTime: Date.now() + waitTime,
     };
@@ -164,18 +175,25 @@ async function fetchDefinitionFromDefiner(word) {
     const resp = await fetch(url);
     if (!resp.ok) {
       console.warn("Definer API 查询失败：", resp.status);
-      return [
-        { type: "text", text: { content: "(definition unavailable)" } },
-      ];
+      return {
+        meaningRichText: [
+          { type: "text", text: { content: "(definition unavailable)" } },
+        ],
+        phonetic: null,
+      };
     }
 
     const data = await resp.json();
 
     if (!Array.isArray(data) || data.length === 0) {
-      return [{ type: "text", text: { content: "(no definition)" } }];
+      return {
+        meaningRichText: [{ type: "text", text: { content: "(no definition)" } }],
+        phonetic: null,
+      };
     }
 
     const entry = data[0];
+    const phonetic = entry.phonetic || null;
     const meaning = entry.meaning || {};
 
     // 🔥 富文本数组
@@ -220,13 +238,19 @@ async function fetchDefinitionFromDefiner(word) {
 
     // 防御性：至少返回一个元素
     if (richTexts.length === 0) {
-      return [{ type: "text", text: { content: "(no definition)" } }];
+      return {
+        meaningRichText: [{ type: "text", text: { content: "(no definition)" } }],
+        phonetic,
+      };
     }
 
-    return richTexts;
+    return { meaningRichText: richTexts, phonetic };
   } catch (err) {
     console.error("❌ Definer API 查询错误：", err);
-    return [{ type: "text", text: { content: "(definition error)" } }];
+    return {
+      meaningRichText: [{ type: "text", text: { content: "(definition error)" } }],
+      phonetic: null,
+    };
   }
 }
 
@@ -234,7 +258,7 @@ async function fetchDefinitionFromDefiner(word) {
 // Notion 上传逻辑（使用字段：Word / Meaning / Sentence / Source URL / Page Location / Time）
 // -----------------------------------------------------
 
-async function uploadToNotion(entry, meaningRichText) {
+async function uploadToNotion(entry, meaningRichText, phonetic) {
   // 如果用户还没有配置 Notion API，则忽略上传
   if (!notionApiKey || !notionDatabaseId) {
     console.warn("Notion API Key / Database ID 未设置，跳过上传");
@@ -243,7 +267,9 @@ async function uploadToNotion(entry, meaningRichText) {
 
   // 安全兜底：如果没拿到释义，调用一次（理论上 definitionPromise 已处理）
   if (!meaningRichText) {
-    meaningRichText = await fetchDefinitionFromDefiner(entry.word);
+    const definitionResult = await fetchDefinitionFromDefiner(entry.word);
+    meaningRichText = definitionResult.meaningRichText;
+    phonetic = phonetic || definitionResult.phonetic;
   }
 
   // 按设置决定是否跳过无释义的单词
@@ -270,6 +296,9 @@ async function uploadToNotion(entry, meaningRichText) {
     parent: { database_id: notionDatabaseId },
     properties: {
       Word: { title: [{ text: { content: entry.word } }] },
+      Phonetic: {
+        rich_text: [{ text: { content: phonetic ? `/${phonetic}/` : "" } }],
+      },
       Meaning: {
         rich_text: meaningRichText,
       },
