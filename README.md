@@ -58,3 +58,10 @@ legacy/wordbook.*   # 旧侧边栏设置页（已停用，仅保留备份）
 - 未上传：检查 Options Page 中的 API Key / Database ID 是否正确，或查看后台日志（开发者工具 → Service Worker）
 - 回跳未高亮：确认 Notion 记录的 Jump Back 链接包含 `#highlight=`，并在目标页允许内容脚本运行
 
+## 测试结果
+- 已测试学术数据库、预印本平台、出版商、论坛，新闻报道中测试不全，科技媒体测试通过，经济政策测试通过
+- JSTOR多级滚动不支持
+- OSF等需要点击展开的网页不支持
+- tandf会清除#标签
+- 带付费墙的媒体未测试
+
