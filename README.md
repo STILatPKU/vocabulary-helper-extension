@@ -1,120 +1,67 @@
 # Vocabulary Helper Extension
 
-一个轻量级 Chrome 扩展，用于在浏览网页时快速记录未知单词，并自动同步至 Notion 词库。
-支持：
+Chrome 扩展：在网页中双击取词，自动查释义并同步到 Notion，支持从 Notion 一键跳回原文并高亮。
 
-* 双击查词
-* 自动获取释义
-* 倒计时自动上传
-* 跳回原文并高亮该词
-* Notion 富文本格式化释义
-* 可选跳过无释义单词
-* 精准 XPath 恢复单词位置
+## 主要功能
+- 双击取词，捕获单词/所在句子/页面标题与 URL/XPath 位置
+- 后台调用 Definer API 获取释义 + 音标，按 Notion 富文本格式上传
+- 倒计时自动上传，可在弹窗队列中取消
+- Notion 记录内生成 Jump Back 链接，点击后回到原页面自动高亮并滚动到单词
 
-## ✨ 功能特性
+## 安装（开发者模式）
+1. 在 Chrome 打开扩展管理页，启用“开发者模式”
+2. 选择“加载已解压的扩展程序”，指向本项目目录
+3. 安装后在扩展列表中找到 “Vocabulary Helper Extension”
 
-### 📌 1. 双击取词
+## Notion 数据库准备
+在 Notion 新建数据库并添加字段：
+- Word（标题）
+- Phonetic（富文本）
+- Meaning（富文本）
+- Sentence（富文本）
+- Source Title（富文本）
+- Source URL（URL）
+- Jump Back（URL）
+- Time（日期）
 
-在网页中双击英文单词即可触发捕捉：
+## 配置（Options Page）
+1. 在扩展列表中点击“详情” → “扩展选项”（或右键扩展图标选“选项”），打开 Options Page
+2. 填写：
+   - Notion API Key
+   - Database ID
+   - 自动上传延迟（秒）
+   - 是否上传无释义单词
+3. 保存后后台会即时应用配置
 
-* 单词本体
-* 所在句子
-* 单词所在 DOM 节点的 XPath
-* 网页链接
+## 使用方式
+- 在任意网页双击英文单词，扩展会：
+  - 立即请求释义与音标
+  - 将条目加入上传队列（弹窗可见倒计时，可点击 Cancel 取消）
+- 倒计时结束后自动上传到 Notion
+- 在 Notion 记录中点击 Jump Back 链接，可回到原文并自动高亮该词（支持动态页面，字体加载等变动会触发重新定位）
 
-（输入框、密码框、可编辑区域会被自动排除）
-
-### 📌 2. 自动查询释义（Definer API）
-
-扩展会在选词的瞬间启动 API 查询，不依赖键盘输入或前端界面。
-
-查询结果包括：
-
-* 所有词性
-* 每个词性的多个释义
-* 示例句子
-* 并以 **Notion 富文本格式**上传
-
-### 📌 3. 倒计时自动上传至 Notion
-
-你可以设置一个自动上传延迟（如 5 秒）：
-
-* 若用户不取消，倒计时结束后自动上传
-* 若释义仍在查询中，扩展会等待释义完成再上传
-* 你可选择是否上传“无释义单词”
-
-### 📌 4. 从 Notion 跳回原文并自动高亮
-
-每条单词记录中自动生成：
-
+## 文件结构
 ```
-Jump Back → https://example.com/page#highlight=xpath:::word
-```
-
-当你从 Notion 点击跳转回网页时，扩展会：
-
-* 自动解析 hash
-* 使用 XPath 定位元素
-* 在元素内部精准查找单词文本
-* 高亮标记并滚动到可视位置
-
-无需外部服务器，无需扩展页面。
-
-## 📁 目录结构
-
-```
-extension/
-│── background.js       # 后台逻辑（队列、Notion 上传、释义查询）
-│── content.js          # 页面脚本（取词、高亮、恢复）
-│── popup.html/js       # 上传队列查看与取消
-│── wordbook.html/js    # 设置页面
-│── manifest.json       # MV3 配置
+background.js       # 后台逻辑：队列、Notion 上传、释义/音标查询
+content.js          # 页面脚本：取词、高亮、跳回恢复
+popup.html / js     # Action 弹窗：查看上传队列、取消
+options.html / js   # Options Page：配置 API Key/DB/延迟/上传策略
+manifest.json       # MV3 配置
+legacy/wordbook.*   # 旧侧边栏设置页（已停用，仅保留备份）
 ```
 
-## ⚙️ 安装方法（开发者模式）
+## 隐私与数据
+- 配置存储于浏览器 `chrome.storage.local`
+- 仅调用 Definer API 获取释义，Notion API 上传到你自己的数据库
 
-1. 下载或 clone 本项目
-2. 打开 Chrome → 扩展程序
-3. 开启 “开发者模式”
-4. 选择 “加载已解压的扩展程序”
-5. 指向项目目录即可加载
+## 故障排查
+- 未上传：检查 Options Page 中的 API Key / Database ID 是否正确，或查看后台日志（开发者工具 → Service Worker）
+- 回跳未高亮：确认 Notion 记录的 Jump Back 链接包含 `#highlight=`，并在目标页允许内容脚本运行
 
-## 🔧 Notion 配置方法
+## 测试结果
+- 已测试学术数据库、预印本平台、出版商、论坛，新闻报道中测试不全，科技媒体测试通过，经济政策测试通过
+- JSTOR多级滚动不支持
+- OSF等需要点击展开的网页不支持
+- tandf会清除#标签
+- 带付费墙的媒体未测试
 
-1. 在 Notion 创建一个数据库
-
-2. 添加以下字段：
-
-   * Word（标题）
-   * Meaning（富文本）
-   * Sentence（富文本）
-   * Source URL（URL）
-   * Jump Back（URL）
-   * Time（日期）
-
-3. 右键扩展图标选择`打开侧边栏`，在扩展侧边设置页中填写：
-
-   * Notion API Key
-   * Database ID
-   * 自动上传延迟（秒）
-   * 是否上传无释义单词
-
-## 🧠 工作流程说明
-
-```
-用户双击单词
-     ↓
-content.js 获取 word/sentence/url/xpath
-     ↓
-background.js 立即请求 Definer 释义
-     ↓
-加入上传队列并显示倒计时
-     ↓
-若倒计时结束 → 上传到 Notion
-     ↓
-Notion 中生成 Jump Back 链接
-     ↓
-用户从 Notion 点击“Jump Back”
-     ↓
-页面加载 → content.js 自动 XPath 定位 → 高亮词汇
-```
