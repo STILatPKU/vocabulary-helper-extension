@@ -12,11 +12,6 @@ mkdir -p "$DEST"
 cp "$ROOT/manifest.firefox.json" "$DEST/manifest.json"
 
 # Core files
-cp "$ROOT"/{background.js,content.js,popup.html,popup.js,options.html,options.js,test-links.html} "$DEST"/
-
-# Legacy assets (optional)
-if [ -d "$ROOT/legacy" ]; then
-  cp -R "$ROOT/legacy" "$DEST/"
-fi
+cp "$ROOT"/{background.js,content.js,popup.html,popup.js,options.html,options.js} "$DEST"/
 
 echo "Firefox build synced to $DEST"
