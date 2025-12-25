@@ -1,15 +1,29 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Vocabulary Helper Extension",
   "version": "0.1.0",
   "description": "Capture selected words, query definitions via Definer and record into Notion after delay.",
-  "permissions": ["contextMenus", "storage", "tabs", "scripting"],
-  "host_permissions": [
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "vocabulary-helper@stilinpek",
+      "data_collection_permissions": {
+        "required": ["authenticationInfo", "websiteContent", "browsingActivity"],
+        "optional": []
+      }
+    }
+  },
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "tabs",
     "https://api.notion.com/*",
     "https://lumetrium.com/*"
   ],
-  "background": { "service_worker": "background.js" },
-  "action": {
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "browser_action": {
     "default_popup": "popup.html"
   },
   "options_page": "options.html",

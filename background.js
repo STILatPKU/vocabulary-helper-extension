@@ -7,6 +7,9 @@ let pendingEntries = []; // array of pending word entries
 let notionApiKey = null;
 let notionDatabaseId = null;
 let uploadWithoutDefinition = true; // 是否上传无释义单词，默认 true
+// Firefox MV2 兼容：action/browserAction 统一接口
+const actionAPI = (typeof chrome !== "undefined" && (chrome.action || chrome.browserAction)) || null;
+const menusAPI = (typeof chrome !== "undefined" && (chrome.contextMenus || chrome.menus)) || null;
 
 chrome.storage.local.get(
   ["waitTime", "notionApiKey", "notionDatabaseId", "uploadWithoutDefinition"],
@@ -23,7 +26,7 @@ chrome.storage.local.get(
 // --- Badge & Queue UI 更新逻辑 ---
 function updateBadge() {
   if (pendingEntries.length === 0) {
-    chrome.action.setBadgeText({ text: "" });
+    actionAPI && actionAPI.setBadgeText({ text: "" });
     return;
   }
   const now = Date.now();
@@ -35,7 +38,7 @@ function updateBadge() {
   const seconds = Math.max(0, Math.ceil(maxRemaining / 1000));
   let text = `UP${seconds}`;
   if (pendingEntries.length > 1) text += "+";
-  chrome.action.setBadgeText({ text });
+  actionAPI && actionAPI.setBadgeText({ text });
 }
 
 function sendQueueUpdate() {
@@ -162,6 +165,46 @@ setInterval(() => {
     sendQueueUpdate();
   }
 }, 1000);
+
+// ------------------------------------------------------------
+// Action 图标右键菜单：打开设置（兼容 Firefox/Chrome）
+// ------------------------------------------------------------
+function setupActionContextMenu() {
+  if (!menusAPI) return;
+
+  // 尝试清空旧菜单，避免重复创建报错
+  try {
+    menusAPI.removeAll(() => {
+      // Chrome MV3: "action"; Firefox: "browser_action"
+      const isFirefox = typeof browser !== "undefined" && !!browser.runtime;
+      const contexts = isFirefox ? ["browser_action"] : ["action"];
+      menusAPI.create({
+        id: "open-options",
+        title: "Open Settings",
+        contexts
+      });
+    });
+  } catch (e) {
+    console.warn("contextMenus setup skipped:", e);
+  }
+
+  const handler = (info, tab) => {
+    if (info.menuItemId === "open-options") {
+      if (chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+      } else {
+        // Firefox 旧版 fallback
+        chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      }
+    }
+  };
+
+  if (menusAPI.onClicked) {
+    menusAPI.onClicked.addListener(handler);
+  }
+}
+
+setupActionContextMenu();
 
 // ------------------------------------------------------------
 // Definer API：获取所有词性/释义/例句（返回 Notion rich_text）
