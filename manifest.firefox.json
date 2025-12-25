@@ -3,7 +3,13 @@
   "name": "Vocabulary Helper Extension",
   "version": "0.1.0",
   "description": "Capture selected words, query definitions via Definer and record into Notion after delay.",
-  "permissions": ["contextMenus", "storage", "tabs"],
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "tabs",
+    "https://api.notion.com/*",
+    "https://lumetrium.com/*"
+  ],
   "background": {
     "scripts": ["background.js"],
     "persistent": true

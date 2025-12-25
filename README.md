@@ -58,10 +58,14 @@ legacy/wordbook.*   # 旧侧边栏设置页（已停用，仅保留备份）
 - 未上传：检查 Options Page 中的 API Key / Database ID 是否正确，或查看后台日志（开发者工具 → Service Worker）
 - 回跳未高亮：确认 Notion 记录的 Jump Back 链接包含 `#highlight=`，并在目标页允许内容脚本运行
 
+## 开发提示（Firefox / 多平台）
+- Chrome 版本使用 `manifest.json`；Firefox 版本使用 `manifest.firefox.json`，可运行 `bash scripts/sync-firefox.sh` 生成 `dist/firefox/manifest.json` 供临时加载。
+- 代码中使用 `chrome.*` 接口，Firefox 会兼容回调式 `chrome.*`；若后续要统一 Promise 风格，建议引入 `webextension-polyfill` 或封装一个 `browser`/`chrome` 适配层。
+- `dist/`、`legacy/`、`todo.md` 已在 `.gitignore`，生成物不应提交；提 PR 前请确保同步 manifest 变更并运行同步脚本。
+
 ## 测试结果
 - 已测试学术数据库、预印本平台、出版商、论坛，新闻报道中测试不全，科技媒体测试通过，经济政策测试通过
 - JSTOR多级滚动不支持
 - OSF等需要点击展开的网页不支持
 - tandf会清除#标签
 - 带付费墙的媒体未测试
-
