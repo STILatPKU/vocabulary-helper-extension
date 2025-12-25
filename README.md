@@ -48,8 +48,6 @@ options.html / options.js  # Options Page：配置 API Key/DB/延迟/上传策�
 manifest.json              # Chrome MV3 配置
 manifest.firefox.json      # Firefox 配置（含 gecko id 与 data_collection_permissions）
 scripts/sync-*.sh          # 生成 dist/chrome 与 dist/firefox 的同步脚本
-dist/                      # 打包输出（被忽略，不提交）
-legacy/wordbook.*          # 旧侧边栏设置页（已停用，仅保留备份）
 ```
 
 ## 隐私与数据
