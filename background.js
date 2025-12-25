@@ -7,6 +7,8 @@ let pendingEntries = []; // array of pending word entries
 let notionApiKey = null;
 let notionDatabaseId = null;
 let uploadWithoutDefinition = true; // 是否上传无释义单词，默认 true
+// Firefox MV2 兼容：action/browserAction 统一接口
+const actionAPI = (typeof chrome !== "undefined" && (chrome.action || chrome.browserAction)) || null;
 
 chrome.storage.local.get(
   ["waitTime", "notionApiKey", "notionDatabaseId", "uploadWithoutDefinition"],
@@ -23,7 +25,7 @@ chrome.storage.local.get(
 // --- Badge & Queue UI 更新逻辑 ---
 function updateBadge() {
   if (pendingEntries.length === 0) {
-    chrome.action.setBadgeText({ text: "" });
+    actionAPI && actionAPI.setBadgeText({ text: "" });
     return;
   }
   const now = Date.now();
@@ -35,7 +37,7 @@ function updateBadge() {
   const seconds = Math.max(0, Math.ceil(maxRemaining / 1000));
   let text = `UP${seconds}`;
   if (pendingEntries.length > 1) text += "+";
-  chrome.action.setBadgeText({ text });
+  actionAPI && actionAPI.setBadgeText({ text });
 }
 
 function sendQueueUpdate() {
