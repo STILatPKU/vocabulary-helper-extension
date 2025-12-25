@@ -8,10 +8,9 @@ Chrome 扩展：在网页中双击取词，自动查释义并同步到 Notion，
 - 倒计时自动上传，可在弹窗队列中取消
 - Notion 记录内生成 Jump Back 链接，点击后回到原页面自动高亮并滚动到单词
 
-## 安装（开发者模式）
-1. 在 Chrome 打开扩展管理页，启用“开发者模式”
-2. 选择“加载已解压的扩展程序”，指向本项目目录
-3. 安装后在扩展列表中找到 “Vocabulary Helper Extension”
+## 安装
+- Chrome：下载 Release 中的 `vocabulary-helper-chrome.zip`，在扩展管理页启用“开发者模式”后“加载已解压的扩展程序”，指向解压目录。
+- Firefox：下载 Release 中的已签名 `vocabulary-helper-firefox.xpi`，在扩展管理页直接安装；或在 `about:debugging#/runtime/this-firefox` 选择“临时载入附加组件”指向 xpi/manifest。
 
 ## Notion 数据库准备
 在 Notion 新建数据库并添加字段：
@@ -25,13 +24,13 @@ Chrome 扩展：在网页中双击取词，自动查释义并同步到 Notion，
 - Time（日期）
 
 ## 配置（Options Page）
-1. 在扩展列表中点击“详情” → “扩展选项”（或右键扩展图标选“选项”），打开 Options Page
-2. 填写：
-   - Notion API Key
-   - Database ID
-   - 自动上传延迟（秒）
-   - 是否上传无释义单词
-3. 保存后后台会即时应用配置
+- Chrome：在扩展管理页点击“详情” → “扩展选项”，或右键扩展图标选择“选项”。
+- Firefox：在扩展管理页找到本扩展 → “选项”；或右键扩展图标使用内置“Open Settings”（右键菜单）。
+- 填写并保存：
+  - Notion API Key
+  - Database ID
+  - 自动上传延迟（秒）
+  - 是否上传无释义单词
 
 ## 使用方式
 - 在任意网页双击英文单词，扩展会：
@@ -42,12 +41,15 @@ Chrome 扩展：在网页中双击取词，自动查释义并同步到 Notion，
 
 ## 文件结构
 ```
-background.js       # 后台逻辑：队列、Notion 上传、释义/音标查询
-content.js          # 页面脚本：取词、高亮、跳回恢复
-popup.html / js     # Action 弹窗：查看上传队列、取消
-options.html / js   # Options Page：配置 API Key/DB/延迟/上传策略
-manifest.json       # MV3 配置
-legacy/wordbook.*   # 旧侧边栏设置页（已停用，仅保留备份）
+background.js              # 后台逻辑：队列、Notion 上传、释义/音标查询
+content.js                 # 页面脚本：取词、高亮、跳回恢复
+popup.html / popup.js      # Action 弹窗：查看上传队列、取消
+options.html / options.js  # Options Page：配置 API Key/DB/延迟/上传策略
+manifest.json              # Chrome MV3 配置
+manifest.firefox.json      # Firefox 配置（含 gecko id 与 data_collection_permissions）
+scripts/sync-*.sh          # 生成 dist/chrome 与 dist/firefox 的同步脚本
+dist/                      # 打包输出（被忽略，不提交）
+legacy/wordbook.*          # 旧侧边栏设置页（已停用，仅保留备份）
 ```
 
 ## 隐私与数据
