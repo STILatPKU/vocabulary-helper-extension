@@ -23,7 +23,8 @@ cp "$ROOT/icons"/{icon-32.png,icon-48.png,icon-96.png} "$DEST/icons/"
 
 echo "Firefox build synced to $DEST"
 
-XPI_OUT="$ROOT/dist/vocabulary-helper-firefox.xpi"
+VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
+XPI_OUT="$ROOT/dist/vocabulary-helper-firefox-${VERSION}.xpi"
 rm -f "$XPI_OUT"
 
 # Package everything under dist/firefox so relative paths inside XPI are correct.
@@ -32,4 +33,4 @@ rm -f "$XPI_OUT"
 	zip -r "$XPI_OUT" . -x "*.DS_Store"
 )
 
-echo "Firefox XPI package created at $ROOT/dist/vocabulary-helper-firefox.xpi"
+echo "Firefox XPI package created at $XPI_OUT"

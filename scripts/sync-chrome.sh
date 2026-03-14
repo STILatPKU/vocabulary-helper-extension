@@ -20,7 +20,8 @@ cp -R "$ROOT/icons" "$DEST/icons"
 
 echo "Chrome build synced to $DEST"
 
-ZIP_OUT="$ROOT/dist/vocabulary-helper-chrome.zip"
+VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
+ZIP_OUT="$ROOT/dist/vocabulary-helper-chrome-${VERSION}.zip"
 rm -f "$ZIP_OUT"
 
 # Package everything under dist/chrome so paths inside zip are correct.
@@ -29,4 +30,4 @@ rm -f "$ZIP_OUT"
 	zip -r "$ZIP_OUT" . -x "*.DS_Store"
 )
 
-echo "Chrome ZIP package created at $ROOT/dist/vocabulary-helper-chrome.zip"
+echo "Chrome ZIP package created at $ZIP_OUT"
