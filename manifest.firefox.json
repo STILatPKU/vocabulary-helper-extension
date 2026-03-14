@@ -1,11 +1,16 @@
 {
   "manifest_version": 2,
   "name": "Vocabulary Helper Extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capture selected words, query definitions via Definer and record into Notion after delay.",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "vocabulary-helper@stilinpek",
+      "update_url": "https://raw.githubusercontent.com/STILatPKU/vocabulary-helper-extension/main/updates/firefox/updates.json",
       "data_collection_permissions": {
         "required": ["authenticationInfo", "websiteContent", "browsingActivity"],
         "optional": []
@@ -24,6 +29,9 @@
     "persistent": true
   },
   "browser_action": {
+    "default_icon": {
+      "32": "icons/icon-32.png"
+    },
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
