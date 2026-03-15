@@ -34,3 +34,11 @@ rm -f "$XPI_OUT"
 )
 
 echo "Firefox XPI package created at $XPI_OUT"
+
+# Update updates.json with the new XPI URL and version.
+UPDATES_JSON="$ROOT/updates/firefox/updates.json"
+sed -i '' -E \
+  -e "s|\"version\": \"[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?\"|\"version\": \"${VERSION}\"|g" \
+  -e "s|vocabulary-helper-firefox-[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?\.xpi|vocabulary-helper-firefox-${VERSION}.xpi|g" \
+  "$UPDATES_JSON"
+echo "updates.json updated with version $VERSION"
